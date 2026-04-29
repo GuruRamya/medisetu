@@ -43,7 +43,7 @@ app.state.limiter = limiter
 app.add_middleware(SlowAPIMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins = [os.getenv("FRONTEND_URL")],
+    allow_origins = ["https://medisetu-bice.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
