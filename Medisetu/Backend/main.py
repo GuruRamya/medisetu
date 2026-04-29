@@ -116,9 +116,19 @@ def extract_text_from_image(file_bytes: bytes) -> str:
     try:
         image = Image.open(io.BytesIO(file_bytes))
         text = pytesseract.image_to_string(image)
+        if not text or not text.strip():
+            logger.warning("Tesseract returned empty text")
+            raise HTTPException(status_code=400, detail="No text found in image. Try a clearer image.")
         return text.strip()
-    except Exception:
-        raise HTTPException(status_code=400, detail="OCR failed")   
+    except pytesseract.TesseractNotFoundError as e:
+        logger.error(f"Tesseract NOT FOUND: {str(e)}")
+        raise HTTPException(status_code=500, detail="OCR engine not available")
+    except pytesseract.TesseractCommandNotFound as e:
+        logger.error(f"Tesseract command failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="OCR engine error")
+    except Exception as e:
+        logger.error(f"OCR Exception: {type(e).__name__}: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"OCR processing failed: {str(e)}")  
 
 
 @app.get("/health")
