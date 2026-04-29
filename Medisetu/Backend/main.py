@@ -1,4 +1,5 @@
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Request
+import os
 from fastapi.middleware.cors import CORSMiddleware
 import fitz
 import pytesseract
