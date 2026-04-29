@@ -3,10 +3,13 @@ services:
     name: medisetu-backend
     env: python
     rootDir: Medisetu/Backend
-    buildCommand: pip install -r requirements.txt && apt-get update && apt-get install -y tesseract-ocr tesseract-ocr-eng
+
+    buildCommand: |
+      apt-get update && apt-get install -y tesseract-ocr tesseract-ocr-eng
+      pip install -r requirements.txt
+
     startCommand: uvicorn main:app --host 0.0.0.0 --port 8000
+
     envVars:
       - key: GROQ_API_KEY
         sync: false
-    packages:
-      - tesseract-ocr
