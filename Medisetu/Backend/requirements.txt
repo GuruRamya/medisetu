@@ -2,6 +2,7 @@ fastapi
 uvicorn
 groq
 python-dotenv
+pytesseract
 pymupdf
 Pillow
 slowapi
