@@ -7,3 +7,4 @@ pytesseract
 Pillow
 slowapi
 python-multipart
+requests
