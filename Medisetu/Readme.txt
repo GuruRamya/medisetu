@@ -35,14 +35,23 @@ Upload a photo or describe your condition in text. For images, it uses a vision-
 **Frontend:** React + Vite + Tailwind CSS  
 **Backend:** FastAPI (Python)  
 **AI:** Groq API — Llama 3.3 70B for text, Llama 4 Scout for vision  
-**OCR:** Tesseract + PyMuPDF for extracting text from uploaded files  
-**Rate limiting:** SlowAPI — 15 requests/minute per user  
+**OCR:** OCR.space API for extracting text from images and PDFs  
+**Rate limiting:** SlowAPI — 25 requests/minute for blood reports, 15/minute for others  
 
 The backend has two layers working together:
 
 1. **Rule-based engine** — pure Python logic with no AI involved. Checks blood values against reference ranges, scans radiology reports for red-flag keywords, identifies high-risk drugs in prescriptions. Fast, deterministic, and always correct on what it knows.
 2. **LLM layer** — takes the rule engine's output as ground truth and writes the human explanation. The LLM is explicitly told: "these values are mathematically verified, do not override them — your job is to explain them warmly."
+
 This combination matters. If you only used an LLM, it might get reference ranges slightly wrong or be inconsistent. If you only used rules, you'd get dry clinical output with no context. Together they're more useful than either alone.
+
+---
+
+## OCR Approach
+
+Originally tried pytesseract (local Tesseract installation), but it added complexity to deployment and fragile system dependencies. Switched to OCR.space API instead — stateless, works everywhere, no installation needed.
+
+**Trade-off:** Small cost per OCR request, but cleaner architecture and more reliable in production. You need an OCR API key (free tier available, or premium for higher limits).
 
 ---
 
@@ -73,6 +82,7 @@ Adding a database would have required adding authentication (to know whose recor
 
 ## Project Structure
 
+```
 MEDISETU/
 ├── Backend/
 │   ├── llm.py
@@ -100,21 +110,30 @@ MEDISETU/
     ├── postcss.config.js
     ├── tailwind.config.js
     └── vite.config.js
+```
 
+---
 
 ## Running It Locally
 
 **Backend**
+
 ```bash
-pip install fastapi uvicorn groq python-dotenv pymupdf pytesseract pillow slowapi
+pip install -r requirements.txt
 
 # Create a .env file
 echo "GROQ_API_KEY=your_key_here" > .env
+echo "OCR_API_KEY=your_ocr_space_key_here" >> .env
 
 uvicorn main:app --reload
 ```
 
+**API Keys:**
+- **GROQ_API_KEY:** Free from [console.groq.com](https://console.groq.com)
+- **OCR_API_KEY:** Free tier at [ocr.space](https://ocr.space/ocrapi), or use the free API without a key (rate limited)
+
 **Frontend**
+
 ```bash
 npm install
 npm run dev
@@ -122,7 +141,16 @@ npm run dev
 
 The frontend runs on `localhost:5173` and proxies API calls to `localhost:8000`.
 
-**Note:** Tesseract OCR needs to be installed separately. On Windows, download the installer from the official repo. On Linux: `apt install tesseract-ocr`.
+---
+
+## Deployment
+
+Currently deployed on Render (see `render.yaml`). The setup is straightforward:
+
+- Set `GROQ_API_KEY` and `OCR_API_KEY` as environment variables in Render
+- The `startCommand` runs the FastAPI server on the assigned port
+
+**Docker Note:** Explored Docker for containerization, but Render's free tier doesn't support it without upgrading to a paid plan. Since the current setup works cleanly without it, keeping the simpler deployment path.
 
 ---
 
@@ -139,15 +167,17 @@ Tests cover all four analysis endpoints, file upload validation, rate limiting, 
 
 ## Limitations
 
-- Handwritten prescriptions are hit or miss with OCR. The UI warns users about this.
+- OCR accuracy depends on image quality. Blurry, skewed, or low-contrast scans may have extraction errors.
 - The system explains reports — it does not diagnose. Every response reminds the user to consult a doctor.
 - Radiology analysis is NLP on the written report, not computer vision on the actual scan images.
 - Responses are only as good as the input. A poorly scanned or unclear report will produce a weaker explanation.
+- API calls are rate-limited (25 requests/minute for blood reports, 15/minute for others) to prevent abuse and keep costs stable.
 
 ---
 
 ## Disclaimer
 
 MediSetu is an educational tool. It explains medical reports in simple language — it is not a substitute for professional medical advice. Always consult a qualified doctor for diagnosis and treatment decisions.
-*Built by a CS student who got tired of watching family members stare blankly at lab reports.*
+
+*Built by a CS student who got tired of watching family members stare blankly at lab reports.*  
 *No medical reports are permanently stored by the system.*
