@@ -97,38 +97,14 @@ async def rate_limit_handler(request, exc):
         content={"detail": "Too many requests. Please slow down."}
     )
 def extract_text_from_pdf(file_bytes: bytes) -> str:
-    api_key = os.getenv("OCR_API_KEY")
-    if not api_key:
-        raise HTTPException(status_code=500, detail="OCR API key not configured")
-    
     try:
         doc = fitz.open(stream=file_bytes, filetype="pdf")
-        all_text = ""
-        
+        text = ""
         for page in doc:
-            pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
-            image_bytes = pix.tobytes("png")
-            
-            response = requests.post(
-                "https://api.ocr.space/parse/image",
-                files={"file": ("page.png", image_bytes)},
-                data={"apikey": api_key, "language": "eng"}
-            )
-            
-            result = response.json()
-            if result.get("IsErroredOnProcessing"):
-                raise HTTPException(status_code=400, detail="OCR failed to process image")
-            
-            parsed_text = result["ParsedResults"][0]["ParsedText"]
-            if parsed_text.strip():
-                all_text += parsed_text + "\n"
-        
-        doc.close()
-        return all_text.strip()
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"OCR API error: {str(e)}")  
+            text += page.get_text()
+        return text.strip()
+    except Exception:
+        raise HTTPException(status_code=400, detail="PDF reading failed")  
 
 
 def extract_text_from_image(file_bytes: bytes) -> str:
