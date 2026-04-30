@@ -1,11 +1,13 @@
 services:
   - type: web
     name: medisetu-backend
-    env: docker
+    env: python
     rootDir: Medisetu/Backend
-    plan: free
-    autoDeploy: true
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
 
     envVars:
       - key: GROQ_API_KEY
+        sync: false
+      - key: OCR_API_KEY
         sync: false
