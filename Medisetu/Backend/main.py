@@ -5,6 +5,7 @@ import fitz
 import io
 import json
 import requests
+from PIL import Image
 from datetime import datetime
 import base64
 from typing import Optional
