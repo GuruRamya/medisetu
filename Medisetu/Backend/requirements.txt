@@ -3,7 +3,6 @@ uvicorn
 groq
 python-dotenv
 pymupdf
-pytesseract
 Pillow
 slowapi
 python-multipart
