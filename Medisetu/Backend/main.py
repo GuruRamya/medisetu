@@ -2,14 +2,10 @@ from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Request
 import os
 from fastapi.middleware.cors import CORSMiddleware
 import fitz
-import pytesseract
-import shutil
-tesseract_path = shutil.which('tesseract')
-if tesseract_path:
-    pytesseract.pytesseract.tesseract_cmd = tesseract_path
 from PIL import Image
 import io
 import json
+import requests
 from datetime import datetime
 import base64
 from typing import Optional
@@ -113,22 +109,35 @@ def extract_text_from_pdf(file_bytes: bytes) -> str:
 
 
 def extract_text_from_image(file_bytes: bytes) -> str:
+    api_key = os.getenv("OCR_API_KEY")
+
+    if not api_key:
+        raise HTTPException(status_code=500, detail="OCR API key not configured")
+
     try:
-        image = Image.open(io.BytesIO(file_bytes))
-        text = pytesseract.image_to_string(image)
-        if not text or not text.strip():
-            logger.warning("Tesseract returned empty text")
-            raise HTTPException(status_code=400, detail="No text found in image. Try a clearer image.")
-        return text.strip()
-    except pytesseract.TesseractNotFoundError as e:
-        logger.error(f"Tesseract NOT FOUND: {str(e)}")
-        raise HTTPException(status_code=500, detail="OCR engine not available")
-    except pytesseract.TesseractCommandNotFound as e:
-        logger.error(f"Tesseract command failed: {str(e)}")
-        raise HTTPException(status_code=500, detail="OCR engine error")
+        response = requests.post(
+            "https://api.ocr.space/parse/image",
+            files={"file": ("image.jpg", file_bytes)},
+            data={
+                "apikey": api_key,
+                "language": "eng"
+            }
+        )
+
+        result = response.json()
+
+        if result.get("IsErroredOnProcessing"):
+            raise HTTPException(status_code=400, detail="OCR failed to process image")
+
+        parsed_text = result["ParsedResults"][0]["ParsedText"]
+
+        if not parsed_text.strip():
+            raise HTTPException(status_code=400, detail="No text found in image")
+
+        return parsed_text.strip()
+
     except Exception as e:
-        logger.error(f"OCR Exception: {type(e).__name__}: {str(e)}")
-        raise HTTPException(status_code=400, detail=f"OCR processing failed: {str(e)}")  
+        raise HTTPException(status_code=500, detail=f"OCR API error: {str(e)}")
 
 
 @app.get("/health")
